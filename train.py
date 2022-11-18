@@ -125,5 +125,6 @@ def do_train(model_name, lr, dataset, num_clients, num_train_clients,
                                                      'pretrained' if pretrained else 'nontrained',
                                                      processor.data_dir.split('/')[-1]),
               out_dict={'results': res_list, 'model': model_name, 'seq_len': seq_len,
-                        'pretrained': pretrained, 'batch_size': batch_size, 'frozen_bert': frozen_bert}
+                        'pretrained': pretrained, 'batch_size': batch_size, 'frozen_bert': frozen_bert,
+                        'lr': lr, 'dataset': dataset, 'num_clients': num_clients, 'num_train_clients': num_train_clients}
               )
