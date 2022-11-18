@@ -1,4 +1,6 @@
 import argparse
+import json
+
 from train import do_train
 
 
@@ -60,7 +62,7 @@ if __name__ == '__main__':
         lrs = float(lr)
         lr = {'server': lrs, 'client': lrs}
     except ValueError:
-        pass
+        lr = json.loads(args.agent_pars)
     do_train(args.model_name,
              lr=lr,
              dataset=args.dataset,
