@@ -3,8 +3,11 @@ import random
 import tensorflow as tf
 import tensorflow_federated as tff
 from seqeval.metrics import classification_report, accuracy_score
+import json
+import os
+
 # from sklearn.metrics import classification_report as sk_cp
-from tqdm.notebook import tqdm
+# from tqdm.notebook import tqdm
 
 
 def set_seed(seed):
@@ -13,12 +16,11 @@ def set_seed(seed):
         tf.random.set_seed(seed)
         np.random.seed(seed)
         print("Seed:", seed)
-        
+
 
 def get_sample_clients(c_list, num_clients):
     random_indices = np.random.choice(len(c_list), size=num_clients, replace=False)
     return np.array(c_list)[random_indices]
-
 
 
 def state_to_model(server_state, keras_model):
@@ -32,6 +34,7 @@ def restore_model_ckpt(model, checkpoint_path):
     checkpoint.restore(latest_chkpt).run_restore_ops()
     return model
 
+
 def state_from_checkpoint(server_state, model, checkpoint_path):
     restore_model_ckpt(model, checkpoint_path)
     server_state = tff.learning.state_with_new_model_weights(
@@ -40,7 +43,13 @@ def state_from_checkpoint(server_state, model, checkpoint_path):
         non_trainable_weights=[v.numpy() for v in model.non_trainable_weights]
     )
     return server_state
-    
+
+
+def state_to_pretrained_model(current_state, model_instance, model_path):
+    model_instance = restore_model_ckpt(model_instance, model_path)
+    model_instance.layers[-1].set_weights(current_state.model.trainable)
+    return model_instance
+
 
 def evaluate_state(server_state, keras_model, batched_eval_data, label_map, out_ind, sep_ind, do_print=True):
     return evaluate(state_to_model(server_state, keras_model), batched_eval_data, label_map, out_ind, sep_ind, do_print)
@@ -48,29 +57,51 @@ def evaluate_state(server_state, keras_model, batched_eval_data, label_map, out_
 
 def evaluate(model, batched_eval_data, label_map, out_ind, sep_ind, pad_ind, do_print=True):
     y_true, y_pred = [], []
-    for (input_ids, input_mask, segment_ids, valid_ids, label_ids) in tqdm(batched_eval_data, position=0, leave=False, desc="Evaluating"):
-            logits = model((input_ids, input_mask, segment_ids, valid_ids), training=False)
-            logits = tf.argmax(logits, axis=2)
-            for i in range(label_ids.shape[0]):
-                lbl_ids = label_ids[i]
-                pred_ids = logits[i]
-                cond = tf.not_equal(lbl_ids, tf.constant(pad_ind, dtype=tf.int64))
-                lbl_ids = tf.squeeze(tf.gather(lbl_ids, tf.where(cond)))[1:-1]
-                pred_ids = tf.squeeze(tf.gather(pred_ids, tf.where(cond)))[1:-1]
+    for (input_ids, input_mask, segment_ids, valid_ids, label_ids) in batched_eval_data:
+        logits = model((input_ids, input_mask, segment_ids, valid_ids), training=False)
+        logits = tf.argmax(logits, axis=2)
+        for i in range(label_ids.shape[0]):
+            lbl_ids = label_ids[i]
+            pred_ids = logits[i]
+            cond = tf.not_equal(lbl_ids, tf.constant(pad_ind, dtype=tf.int64))
+            lbl_ids = tf.squeeze(tf.gather(lbl_ids, tf.where(cond)))[1:-1]
+            pred_ids = tf.squeeze(tf.gather(pred_ids, tf.where(cond)))[1:-1]
 
-                temp_1 = list(map(lambda x: label_map[x.numpy()], lbl_ids))
-                temp_2 = list(map(lambda x: label_map[x.numpy()] if label_map[x.numpy()] not in ['[SEP]', '[PAD]', '[CLS]'] else label_map[out_ind], pred_ids))
+            temp_1 = list(map(lambda x: label_map[x.numpy()], lbl_ids))
+            temp_2 = list(map(
+                lambda x: label_map[x.numpy()] if label_map[x.numpy()] not in ['[SEP]', '[PAD]', '[CLS]'] else
+                label_map[out_ind], pred_ids))
 
-                y_true.append(temp_1)
-                y_pred.append(temp_2)
-            
+            y_true.append(temp_1)
+            y_pred.append(temp_2)
+
     accuracy = accuracy_score(y_true, y_pred)
-    
+
     if do_print:
         print(classification_report(y_true, y_pred, digits=4, zero_division=0))
     out_dict = classification_report(y_true, y_pred, zero_division=0, output_dict=True)
     out_dict['accuracy'] = accuracy
     return out_dict
+
+
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
+
+
+def save_json(filename, out_dict):
+    os.makedirs('log/', exist_ok=True)
+    num = '+(1)'
+    while os.path.exists(filename + num):
+        num = '+({})'.format(num[num.index('(')+1:-1])
+    with open("log/{}.json".format(filename), "w") as outfile:
+        json.dump(out_dict, outfile, indent=None, cls=NpEncoder)
 
 
 """

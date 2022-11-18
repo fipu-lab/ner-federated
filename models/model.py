@@ -15,16 +15,14 @@ class MaskedSparseCategoricalCrossentropy(tf.keras.losses.SparseCategoricalCross
         label_ids, label_mask = y_true[0], y_true[1]
         label_ids_masked = tf.boolean_mask(label_ids, label_mask)
         logits_masked = tf.boolean_mask(y_pred, label_mask)
-        return super().__call__(label_ids_masked, logits_masked, **kwargs) 
-    
-    
-    
+        return super().__call__(label_ids_masked, logits_masked, **kwargs)
 
 
 class ValidationLayer(keras.layers.Layer):
     def call(self, sequence_output, valid_ids):
         sq = sequence_output
         vi = valid_ids
+
         def val_fn(i):
             cond = tf.equal(vi[i], tf.constant(1, dtype=tf.int32))
             temp = tf.squeeze(tf.gather(sq[i], tf.where(cond)))
@@ -37,36 +35,34 @@ class ValidationLayer(keras.layers.Layer):
         return n_vo
 
 
-    
-
 def build_BertNer(bert_model, num_labels, max_seq_length):
-        float_type = tf.float32
-        input_word_ids = tf.keras.layers.Input(shape=(max_seq_length,), dtype=tf.int32, name='input_word_ids')
-        input_mask = tf.keras.layers.Input(shape=(max_seq_length,), dtype=tf.int32, name='input_mask')
-        input_type_ids = tf.keras.layers.Input(shape=(max_seq_length,), dtype=tf.int32, name='input_type_ids')
-        valid_ids = tf.keras.layers.Input(shape=(max_seq_length,), dtype=tf.int32, name='valid_ids')
+    float_type = tf.float32
+    input_word_ids = tf.keras.layers.Input(shape=(max_seq_length,), dtype=tf.int32, name='input_word_ids')
+    input_mask = tf.keras.layers.Input(shape=(max_seq_length,), dtype=tf.int32, name='input_mask')
+    input_type_ids = tf.keras.layers.Input(shape=(max_seq_length,), dtype=tf.int32, name='input_type_ids')
+    valid_ids = tf.keras.layers.Input(shape=(max_seq_length,), dtype=tf.int32, name='valid_ids')
 
-        if type(bert_model) == str:
-            bert_config = BertConfig.from_json_file(os.path.join(bert_model,"bert_config.json"))
-        elif type(bert_model) == dict:
-            bert_config = BertConfig.from_dict(bert_model)
+    if type(bert_model) == str:
+        bert_config = BertConfig.from_json_file(os.path.join(bert_model, "bert_config.json"))
+    elif type(bert_model) == dict:
+        bert_config = BertConfig.from_dict(bert_model)
 
-        bert_layer = BertModel(config=bert_config,float_type=float_type)
-        _, sequence_output = bert_layer(input_word_ids, input_mask,input_type_ids)
+    bert_layer = BertModel(config=bert_config, float_type=float_type)
+    _, sequence_output = bert_layer(input_word_ids, input_mask, input_type_ids)
 
-        val_layer = ValidationLayer()(sequence_output, valid_ids)
-        
-        dropout = tf.keras.layers.Dropout(rate=bert_config.hidden_dropout_prob)(val_layer)
-        
-        initializer = tf.keras.initializers.TruncatedNormal(stddev=bert_config.initializer_range)
-        
-        classifier = tf.keras.layers.Dense(
-            num_labels, kernel_initializer=initializer, activation='softmax', name='output', dtype=float_type)(dropout)
-        
-        bert = tf.keras.Model(inputs=[input_word_ids, input_mask, input_type_ids, valid_ids], outputs=[classifier])
+    val_layer = ValidationLayer()(sequence_output, valid_ids)
 
-        return bert
-    
+    dropout = tf.keras.layers.Dropout(rate=bert_config.hidden_dropout_prob)(val_layer)
+
+    initializer = tf.keras.initializers.TruncatedNormal(stddev=bert_config.initializer_range)
+
+    classifier = tf.keras.layers.Dense(
+        num_labels, kernel_initializer=initializer, activation='softmax', name='output', dtype=float_type)(dropout)
+
+    bert = tf.keras.Model(inputs=[input_word_ids, input_mask, input_type_ids, valid_ids], outputs=[classifier])
+
+    return bert
+
 
 """
 class BertNer(tf.keras.Model):
