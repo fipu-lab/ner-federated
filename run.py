@@ -58,7 +58,7 @@ if __name__ == '__main__':
     lr = args.lr
     try:
         lrs = float(lr)
-        lr = {'server': lr, 'client': lr}
+        lr = {'server': lrs, 'client': lrs}
     except ValueError:
         pass
     do_train(args.model_name,
