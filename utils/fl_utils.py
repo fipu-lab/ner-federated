@@ -96,12 +96,14 @@ class NpEncoder(json.JSONEncoder):
 
 
 def save_json(filename, out_dict):
-    os.makedirs('log/', exist_ok=True)
+    if os.path.dirname(filename) != '':
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
     i = 1
-    while os.path.exists("log/{}.json".format(filename)):
+    while os.path.exists(filename):
         filename = filename.replace('+({})'.format(i), '+({})'.format(i+1))
         i += 1
-    with open("log/{}.json".format(filename), "w") as outfile:
+    print('saving to', filename)
+    with open(filename, "w") as outfile:
         json.dump(out_dict, outfile, indent=None, cls=NpEncoder)
 
 
