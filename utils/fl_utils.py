@@ -98,7 +98,7 @@ class NpEncoder(json.JSONEncoder):
 def save_json(filename, out_dict):
     os.makedirs('log/', exist_ok=True)
     i = 1
-    while os.path.exists(filename):
+    while os.path.exists("log/{}.json".format(filename)):
         filename = filename.replace('+({})'.format(i), '+({})'.format(i+1))
         i += 1
     with open("log/{}.json".format(filename), "w") as outfile:
