@@ -79,7 +79,7 @@ def do_train(model_name, lr, dataset, num_clients, num_train_clients,
     # Wrap a Keras model for use with TFF.
     def model_fn():
         model = build_BertNer(model_path, processor.label_len(), seq_len)
-        if pretrained and frozen_bert:
+        if frozen_bert:
             freeze_bert_layer(model)
         return tff.learning.from_keras_model(
             model,
