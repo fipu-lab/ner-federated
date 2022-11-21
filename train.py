@@ -121,9 +121,10 @@ def do_train(model_name, lr, dataset, num_clients, num_train_clients,
         # a memory constraint due to limited client number
         tff.framework.get_context_stack().current.executor_factory.clean_up_executors()
 
-    save_json(filename='log/{}/results-{}+{}+{}+(1).json'.format(model_name, model_name,
-                                                                 'pretrained' if pretrained else 'nontrained',
-                                                                 processor.data_dir.split('/')[-1]),
+    save_json(filename='log/{}/results-{}+{}+{}+{}+(1).json'.format(model_name, model_name,
+                                                                    'pretrained' if pretrained else 'nontrained',
+                                                                    'frozen' if frozen_bert else 'nonfrozen',
+                                                                    processor.data_dir.split('/')[-1]),
               out_dict={'results': res_list, 'model': model_name, 'seq_len': seq_len,
                         'pretrained': pretrained, 'batch_size': batch_size, 'frozen_bert': frozen_bert,
                         'lr': lr, 'dataset': dataset, 'num_clients': num_clients,
