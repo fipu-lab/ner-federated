@@ -108,7 +108,7 @@ def do_train(model_name, lr, dataset, num_clients, num_train_clients,
         examples = metrics['stat']['num_examples']
         if rnd_ind % num_train_clients == 0:
             if frozen_bert:
-                state_to_pretrained_model(state, global_model, model_path)
+                state_to_pretrained_model(state, global_model)
             else:
                 state_to_model(state, global_model)
             res = eval_model(global_model, eval_data_batched, do_print=True)
@@ -116,10 +116,9 @@ def do_train(model_name, lr, dataset, num_clients, num_train_clients,
             res['Examples'] = examples
             res_list.append(res)
 
-    if clients_per_thread > 1:
-        # This prevents the VRAM from growing to much since we already have
-        # a memory constraint due to limited client number
-        tff.framework.get_context_stack().current.executor_factory.clean_up_executors()
+        if clients_per_thread > 1:
+            # This prevents the VRAM from growing
+            tff.framework.get_context_stack().current.executor_factory.clean_up_executors()
 
     save_json(filename='log/{}/results-{}+{}+{}+{}+(1).json'.format(model_name, model_name,
                                                                     'pretrained' if pretrained else 'nontrained',

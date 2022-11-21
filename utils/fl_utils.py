@@ -45,8 +45,8 @@ def state_from_checkpoint(server_state, model, checkpoint_path):
     return server_state
 
 
-def state_to_pretrained_model(current_state, model_instance, model_path):
-    model_instance = restore_model_ckpt(model_instance, model_path)
+def state_to_pretrained_model(current_state, model_instance):
+    # model_instance = restore_model_ckpt(model_instance, model_path)
     model_instance.layers[-1].set_weights(current_state.model.trainable)
     return model_instance
 
