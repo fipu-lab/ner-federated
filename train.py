@@ -1,5 +1,6 @@
 import os
 import logging
+import gc
 
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -107,6 +108,10 @@ def do_train(model_name, lr, dataset, num_clients, num_train_clients,
         print("Round", rnd_ind, "Loss:", metrics['train']['loss'], "Examples:", metrics['stat']['num_examples'])
         examples = metrics['stat']['num_examples']
         if rnd_ind % num_train_clients == 0:
+            if clients_per_thread > 1 and rnd_ind % (num_train_clients * 2) == 0:
+                # This prevents the VRAM from growing
+                tff.framework.get_context_stack().current.executor_factory.clean_up_executors()
+                gc.collect()
             if frozen_bert:
                 state_to_pretrained_model(state, global_model)
             else:
@@ -115,10 +120,6 @@ def do_train(model_name, lr, dataset, num_clients, num_train_clients,
             res['Round'] = rnd_ind
             res['Examples'] = examples
             res_list.append(res)
-
-        if clients_per_thread > 1:
-            # This prevents the VRAM from growing
-            tff.framework.get_context_stack().current.executor_factory.clean_up_executors()
 
     save_json(filename='log/{}/results-{}+{}+{}+{}+(1).json'.format(model_name, model_name,
                                                                     'pretrained' if pretrained else 'nontrained',
